@@ -15,100 +15,16 @@ cat("\014");      # Clears the console screen
 #dev.off()   # Clears the Plots window
 ```
 
-## Theoretical questions
-
-
-
-Exercise 1. Multiple Choice
-  (a)
-B. Random forest is a special case of bagging, is true. Random forest improves the bagging method by de-correlating the grown trees. De-correlating is executed by allowing only a random subset of the variables to be used in each split in the tree. This eventually leads to a more throughout explored model space in contrast to bagging.
-
-  (b)
-Both A. and B. are true. The definition for bagged trees is that trees are grown independent of each other from a random sample of the observations. Bagging is an ensemble method, where the performance of weak learners (also referred to as "building blocks") are improved by growing multiple trees and averaging the predictions.
-
-  (c)
-A. and C. is true. De-correlation in random forest works by always selecting a subset of the features to be candidates for each split. For instance, answer B. is not true since it is the general way-to-go in bagging which leads to many identical trees.
-C. is also true due to the fact that the trees in random forest are grown on bootstrapped subsets of the training data. It is very likely that the bootstrap samples do not include all 100 % of the original data and thus could be referred to as subsets in this question.
-
-  (d)
-B. is true. Boosting is also an ensemble method that improves the performance of weak learners. Answer A. is false because boosting is a special case where the trees are indeed grown using information from prior trees.
-
-  (e)
-Both answers are false. While it would be tempting to say that the number of trees should be as large as possible, the improved performance per added tree will decrease upon a certain number of trees grown. Thus, generating a large number of trees is insufficient. Answer B. is also false because randomness is used when growing trees. This means that there is no point in exploring individual trees.
-
-  (f)
-C. is true. The learning in boosting takes place when tree is grown on the residuals of the previous tree and is controlled by lambda (shrinkage parameter).
-
-
-
-Exercise 2. 5.4, question 2
-
-  (a)
-With bootstrapping, we take an observation randomly from the original data set. The probability that the first bootstrap observation is not the jth observation is (n-1) / n, where n = the number of observations in the original set. In contrast, the probability that the bootstrap observation is the jth observation is 1 / n.
-
-  (b)
-Bootstrapping involves replacement, which means that the first observation that was taken will be in awailable to be taken again to the second bootstrap observation. Thus the probability is the same: (n-1) / n.
-
-  (c)
-The probability that the bootstrap observation is the jth observation is 1/n. Whereas the inverse 1-1/n means that the bootstrap observation is not the jth observation as discussed in (a) and (b). Thus, the probability that the jth observation is in any of the bootstrap observations which make up the bootstrap sample is every bootstrap observation probability multiplied.
-
-  (d)
-1- probability that the jth observation is not in the bootstrap sample:
-1-(1-1/5)^5 = 0.67232
-
-  (e)
-1- probability that the jth observation is not in the bootstrap sample:
-1-(1-1/100)^100 = 0.6339677
-
-  (f)
-1- probability that the jth observation is not in the bootstrap sample:
-1-(1-1/10000)^10000 = 0.632139
-
-  (g)
-We can observe that the values average to 0.6321224 as n increases.
-```{r probabilities, echo=TRUE}
-probabilities <- NULL
-for (n in 1:100000) {
-  
-  temp <- 1-(1-1/n)^n
-  
-  probabilities <- c(probabilities, temp)
-}
-
-plot(probabilities)
-
-
-```
-  (h)
-We observe that the value 4 is included in 63,84 % of the bootstrap samples. This observation is in line with the previous exercises.
-```{r Bootstrapping, echo=TRUE}
-store <- rep(NA, 10000)
-for(i in 1:10000){
-  store[i] <- sum(sample(1:100, rep=TRUE) == 4) > 0
-}
-mean(store)
-
-```
-
-
-Exercise 3. 8.4, exercise 2
-
-As mentioned previously, trees in boosting utilizes information gathered from previous trees. The algorithm in boosting works by adding a shrunken version on top of the first grown tree and calculating the residuals. This step is repeated until the residuals are minimized. Thus boosting is the sum of the sequentially grown trees.
-
-
-
 ## Empirical Exercises
 
-Exercise 4.
-
-Part 1. Instructions from Exercise 1.1
+Part 1.
 
 ```{r Data2024, echo=TRUE}
 rm(list=ls());    # Clears all objects
 cat("\014");      # Clears the console screen
 
 
-setwd("C:/Users/tuukk/OneDrive - Hanken Svenska handelshogskolan/Masters Finance/Machine Learning")
+
 
 library(haven)
 Data = read_dta("Data_2024.dta")
@@ -145,7 +61,7 @@ tree.fit <- tree(trt1m ~ . - year, data = train)
 regtree.testMSE <- mean((test$trt1m - predict(tree.fit, newdata = test))^2)
 regtree.testMSE # 412.5682
 
-# Recall the test MSEs from Exercises 1.:
+# Recall the test MSEs from Exercises 1. Regularization:
 #intercept.testMSE # 412.568
 #OLS.testMSE # 413.9517
 #forward.testMSE # testMSE based on BIC 414.3143
@@ -168,7 +84,6 @@ rm(list=ls());    # Clears all objects
 cat("\014");      # Clears the console screen
 
 
-setwd("C:/Users/tuukk/OneDrive - Hanken Svenska handelshogskolan/Masters Finance/Machine Learning")
 
 library(haven)
 Data23 = read_dta("Data_2023.dta")
