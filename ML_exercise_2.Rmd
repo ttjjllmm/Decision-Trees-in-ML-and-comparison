@@ -1,0 +1,508 @@
+---
+title: "MLF Exercises 2"
+author: "Tuukka Lukkari"
+date: "2024-04-10"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list=ls());    # Clears all objects
+cat("\014");      # Clears the console screen
+#dev.off()   # Clears the Plots window
+```
+
+## Theoretical questions
+
+
+
+Exercise 1. Multiple Choice
+  (a)
+B. Random forest is a special case of bagging, is true. Random forest improves the bagging method by de-correlating the grown trees. De-correlating is executed by allowing only a random subset of the variables to be used in each split in the tree. This eventually leads to a more throughout explored model space in contrast to bagging.
+
+  (b)
+Both A. and B. are true. The definition for bagged trees is that trees are grown independent of each other from a random sample of the observations. Bagging is an ensemble method, where the performance of weak learners (also referred to as "building blocks") are improved by growing multiple trees and averaging the predictions.
+
+  (c)
+A. and C. is true. De-correlation in random forest works by always selecting a subset of the features to be candidates for each split. For instance, answer B. is not true since it is the general way-to-go in bagging which leads to many identical trees.
+C. is also true due to the fact that the trees in random forest are grown on bootstrapped subsets of the training data. It is very likely that the bootstrap samples do not include all 100 % of the original data and thus could be referred to as subsets in this question.
+
+  (d)
+B. is true. Boosting is also an ensemble method that improves the performance of weak learners. Answer A. is false because boosting is a special case where the trees are indeed grown using information from prior trees.
+
+  (e)
+Both answers are false. While it would be tempting to say that the number of trees should be as large as possible, the improved performance per added tree will decrease upon a certain number of trees grown. Thus, generating a large number of trees is insufficient. Answer B. is also false because randomness is used when growing trees. This means that there is no point in exploring individual trees.
+
+  (f)
+C. is true. The learning in boosting takes place when tree is grown on the residuals of the previous tree and is controlled by lambda (shrinkage parameter).
+
+
+
+Exercise 2. 5.4, question 2
+
+  (a)
+With bootstrapping, we take an observation randomly from the original data set. The probability that the first bootstrap observation is not the jth observation is (n-1) / n, where n = the number of observations in the original set. In contrast, the probability that the bootstrap observation is the jth observation is 1 / n.
+
+  (b)
+Bootstrapping involves replacement, which means that the first observation that was taken will be in awailable to be taken again to the second bootstrap observation. Thus the probability is the same: (n-1) / n.
+
+  (c)
+The probability that the bootstrap observation is the jth observation is 1/n. Whereas the inverse 1-1/n means that the bootstrap observation is not the jth observation as discussed in (a) and (b). Thus, the probability that the jth observation is in any of the bootstrap observations which make up the bootstrap sample is every bootstrap observation probability multiplied.
+
+  (d)
+1- probability that the jth observation is not in the bootstrap sample:
+1-(1-1/5)^5 = 0.67232
+
+  (e)
+1- probability that the jth observation is not in the bootstrap sample:
+1-(1-1/100)^100 = 0.6339677
+
+  (f)
+1- probability that the jth observation is not in the bootstrap sample:
+1-(1-1/10000)^10000 = 0.632139
+
+  (g)
+We can observe that the values average to 0.6321224 as n increases.
+```{r probabilities, echo=TRUE}
+probabilities <- NULL
+for (n in 1:100000) {
+  
+  temp <- 1-(1-1/n)^n
+  
+  probabilities <- c(probabilities, temp)
+}
+
+plot(probabilities)
+
+
+```
+  (h)
+We observe that the value 4 is included in 63,84 % of the bootstrap samples. This observation is in line with the previous exercises.
+```{r Bootstrapping, echo=TRUE}
+store <- rep(NA, 10000)
+for(i in 1:10000){
+  store[i] <- sum(sample(1:100, rep=TRUE) == 4) > 0
+}
+mean(store)
+
+```
+
+
+Exercise 3. 8.4, exercise 2
+
+As mentioned previously, trees in boosting utilizes information gathered from previous trees. The algorithm in boosting works by adding a shrunken version on top of the first grown tree and calculating the residuals. This step is repeated until the residuals are minimized. Thus boosting is the sum of the sequentially grown trees.
+
+
+
+## Empirical Exercises
+
+Exercise 4.
+
+Part 1. Instructions from Exercise 1.1
+
+```{r Data2024, echo=TRUE}
+rm(list=ls());    # Clears all objects
+cat("\014");      # Clears the console screen
+
+
+setwd("C:/Users/tuukk/OneDrive - Hanken Svenska handelshogskolan/Masters Finance/Machine Learning")
+
+library(haven)
+Data = read_dta("Data_2024.dta")
+#View(Data)
+
+dim(Data) # 309 columns, 1 950 726 rows
+
+# Cleaning
+df <- Data[, c(2, 6, 8, 10:309)] #Including only those columns we want
+df <- na.omit(df) # Remove null values
+dim(df)
+
+# Splitting the data into a training and test set
+# Training 2005-2015
+# Test set 2016-2020
+
+train <- subset(df, year >= 2005 & year <= 2015)
+dim(train)
+test <- subset(df, year >= 2016 & year <= 2020)
+dim(test)
+
+```
+Part 2. Tree fitting
+
+```{r Trees, echo=TRUE}
+  # Dependent variable trt1m and calculate test MSE
+library(tree)
+set.seed(1)
+
+tree.fit <- tree(trt1m ~ . - year, data = train)
+
+
+#Computing test MSE
+regtree.testMSE <- mean((test$trt1m - predict(tree.fit, newdata = test))^2)
+regtree.testMSE # 412.5682
+
+# Recall the test MSEs from Exercises 1.:
+#intercept.testMSE # 412.568
+#OLS.testMSE # 413.9517
+#forward.testMSE # testMSE based on BIC 414.3143
+#forward.CV.testMSE # 414.327
+#backward.testMSE # 413.7607
+#lasso.testMSE # 413.395
+#ridge.testMSE # 413.5389
+
+# We can notice that a singlenode regression tree already performs better than all other except the OLS estimation with only the intercept.
+
+# Due to the large number of predictors, the lasso effectively shrinks irrelevant predictors making it perform predictor selection. There can also be naturally linear relationships which the lasso handles better.
+
+# The tree is consisting of only one node. This means that the tree will exactly give the same predictions as the intercept.
+```
+
+Exercise 5.
+Part 1. Importing data
+```{r Data2023, echo=TRUE}
+rm(list=ls());    # Clears all objects
+cat("\014");      # Clears the console screen
+
+
+setwd("C:/Users/tuukk/OneDrive - Hanken Svenska handelshogskolan/Masters Finance/Machine Learning")
+
+library(haven)
+Data23 = read_dta("Data_2023.dta")
+ # Getting rid of NA-values
+
+library(dplyr)
+# Selecting the 23 predictors
+Data23 <- select(Data23, roe_t1_w, fyear, sales_growth_w, long_term_debt_w, short_term_debt_w,
+                        cash_to_at_w, capex_to_at_w, aqc_to_at_w, ap_to_at_w, currassets_to_at_w,
+                        derivative_to_at_w, amort_to_at_w, dvt_to_ebit_w, dividend_payer_w,
+                        goodwill_to_at_w, invcap_to_at_w, invt_to_at_w, short_inv_to_at_w,
+                        liabilities_to_at_w, curr_liabilities_to_at_w, notespay_to_at_w,
+                        ppe_to_at_w, def_taxes_to_at_w, income_taxes_to_at_w, ln_at_w)
+
+Data23 <- na.omit(Data23) # NA omit after selecting columns of interest to not remove rows where other columns have missing values
+View(Data23)
+
+```
+
+Part 2. Fitting regression trees
+```{r regressiontrees, echo=TRUE}
+library(dplyr)
+library(tree)
+
+df2017 = Data23 %>% filter(fyear == 2017)
+df2017 = df2017[, c(1, 3:25)] # Using only columns with values
+df2017
+tree2017 = tree(roe_t1_w ~ ., data = df2017)
+plot(tree2017)
+text(tree2017, pretty = 0)
+summary(tree2017)
+
+df2018 = Data23 %>% filter(fyear == 2018)
+df2018 = df2018[, c(1, 3:25)]
+tree2018 = tree(roe_t1_w ~ ., data = df2018)
+plot(tree2018)
+text(tree2018, pretty = 0)
+summary(tree2018)
+
+df2019 = Data23 %>% filter(fyear == 2019)
+df2019 = df2019[, c(1, 3:25)]
+tree2019 = tree(roe_t1_w ~ ., data = df2019)
+plot(tree2019)
+text(tree2019, pretty = 0)
+summary(tree2019)
+
+# All regression trees have a residual mean deviance of approximately 0.21
+```
+
+Exercise 6. Regression tree and test MSE
+```{r regressiontrees2, echo=TRUE}
+train = rbind(df2017, df2018) # placing df2018 beneath df2017
+test = df2019
+
+# FITTING REGRESSION TREES
+set.seed(1)
+tree.fit2 <- tree(roe_t1_w ~ ., data = train) # Fitting the tree to the training set
+summary(tree.fit2)
+# Deviance ís the sum of squared errors for the tree
+plot(tree.fit2)
+text(tree.fit2, pretty = 0)
+
+# Computing test MSE
+yhat <- as.numeric(predict(tree.fit2, newdata = test))
+
+df2019.test <- test$roe_t1_w
+str(df2019.test)
+str(yhat)
+
+plot(yhat, df2019.test)
+abline(0,1)
+regtree.testMSE <- mean((yhat - df2019.test)^2) 
+regtree.testMSE # Test MSE 0.2291364
+```
+
+Exercise 7. Pruning
+```{r pruning, echo=TRUE}
+
+# Pruning with cross-validation
+cv.treefit2 <- cv.tree(tree.fit2, FUN = prune.tree, K = 10)
+plot(cv.treefit2$size, cv.treefit2$dev, type = "b") # the most complex tree is selected (size = 7)
+
+
+
+
+# Cost-complexity pruning (involves snipping off the least important splits)
+prune.tree2 <- prune.tree(tree.fit2, best = 7)
+summary(prune.tree2)
+
+plot(prune.tree2)
+text(prune.tree2, pretty = 0)
+
+yhat.prun <- predict(prune.tree2, newdata = test)
+prun.testMSE <- mean((yhat.prun - df2019.test)^2)
+prun.testMSE # 0.2291364
+
+
+```
+
+Exercise 8. Bagging
+```{r bagging, echo=TRUE}
+library(randomForest)
+set.seed(1)
+
+bag.2023 <- randomForest(roe_t1_w ~ ., data = train, mtry = 23, importance = TRUE) #mtry = 23 indicates that all predictors should be considered = bagging method
+bag.2023
+
+# Bagged model on the test set
+yhat.bag <- predict(bag.2023, newdata = test)
+plot(yhat.bag, df2019.test)
+abline(0,1)
+bag.testMSE <- mean((yhat.bag - df2019.test)^2) 
+bag.testMSE # 0.197693
+
+
+# The most important predictors are:
+importance(bag.2023)
+varImpPlot(bag.2023)
+
+# We can see that the most important variable by far is the roe_t1, the other predictors decrease the MSE by a much smaller amount. 
+# Variable importance beginning from the most important:
+# liabilities_to_at_w, income_taxes_to_at_w, ln_at_w, invcap_to_at_w and curr_liabilities_to_at_W
+```
+
+Exercise 9. RandomForest
+```{r randomforest, echo=TRUE}
+
+set.seed(1)
+
+
+# Trying with 5, 10, 15, 20
+
+rd.2023 <- randomForest(roe_t1_w ~ ., data = train, mtry = 22)
+yhat.rd <- predict(rd.2023, newdata = test)
+rd.testMSE <- mean((yhat.rd - df2019.test)^2)
+
+rd.2023.2 <- randomForest(roe_t1_w ~ ., data = train, mtry = 5)
+yhat.rd.2 <- predict(rd.2023.2, newdata = test)
+rd.testMSE.2 <- mean((yhat.rd.2 - df2019.test)^2)
+
+rd.2023.3 <- randomForest(roe_t1_w ~ ., data = train, mtry = 10)
+yhat.rd.3 <- predict(rd.2023.3, newdata = test)
+rd.testMSE.3 <- mean((yhat.rd.3 - df2019.test)^2)
+
+rd.2023.4 <- randomForest(roe_t1_w ~ ., data = train, mtry = 15)
+yhat.rd.4 <- predict(rd.2023.4, newdata = test)
+rd.testMSE.4 <- mean((yhat.rd.4 - df2019.test)^2)
+
+rd.2023.5 <- randomForest(roe_t1_w ~ ., data = train, mtry = 20)
+yhat.rd.5 <- predict(rd.2023.5, newdata = test)
+rd.testMSE.5 <- mean((yhat.rd.5 - df2019.test)^2)
+
+rd.2023.6 <- randomForest(roe_t1_w ~ ., data = train, mtry = 1)
+yhat.rd.6 <- predict(rd.2023.6, newdata = test)
+rd.testMSE.6 <- mean((yhat.rd.6 - df2019.test)^2)
+
+
+
+rd.testMSE.2 # Second one with mtry = 5 seems to be yielding the lowest test MSE 
+
+# Trying to decrease MSE even more
+rd.2023.7 <- randomForest(roe_t1_w ~ ., data = train, mtry = 4)
+yhat.rd.7 <- predict(rd.2023.7, newdata = test)
+rd.testMSE.7 <- mean((yhat.rd.7 - df2019.test)^2)
+rd.testMSE.7 #  0.1902107
+
+
+rd.2023.8 <- randomForest(roe_t1_w ~ ., data = train, mtry = 3)
+yhat.rd.8 <- predict(rd.2023.8, newdata = test)
+rd.testMSE.8 <- mean((yhat.rd.8 - df2019.test)^2)
+rd.testMSE.8 
+
+
+
+
+# We find that the randomforest with mtry = 4 yields the lowest test MSE =  0.1902107
+
+
+
+
+importance(rd.2023.7) #Viewing the importance of each variable
+varImpPlot(rd.2023.7)
+# Importance (most to least top 5)
+# liabilities_to_at_w, ln_at_w, cash_to_at_w, income_taxes_to_at_w, , sales_growth_w
+
+# Comparison with bagging
+# bagging test MSE = [1] 0.197693 and randomforest testMSE = 0.1902107. We can observe that by decorrelating the trees (which is the difference between bagging and randomforest) will improve predictability.
+```
+
+Exercise 10. Boosting
+```{r boosting, echo=TRUE}
+
+library(gbm)
+set.seed(1)
+
+# Depth = 3
+boost.2023 <- gbm(roe_t1_w ~ ., data = train, distribution = "gaussian", n.trees = 5000, interaction.depth = 3)
+summary(boost.2023) # Outputs relative influence plot and relative influence statistics
+
+set.seed(1)
+#Depth = 1
+boost.20232 <- gbm(roe_t1_w ~ ., data = train, distribution = "gaussian", n.trees = 5000, interaction.depth = 1)
+summary(boost.20232) # Outputs relative influence plot and relative influence statistics
+
+
+# Partial dependence plots of these two variables (indicate marginal effect of the selected variables)
+plot(boost.2023, i = "liabilities_to_at_w")
+plot(boost.2023, i = "ln_at_w")
+
+# Predicting the boosted model, depth = 3
+yhat.boost <- predict(boost.2023, newdata = test, n.trees = 5000) # default lambda = 0.001
+boost.testMSE <- mean((yhat.boost - df2019.test)^2) 
+boost.testMSE # test MSE = 0.2301707
+
+
+# Predicting the boosted model with depth = 1
+yhat.boost2 <- predict(boost.20232, newdata = test, n.trees = 5000) # default lambda = 0.001
+boost.testMSE2 <- mean((yhat.boost2 - df2019.test)^2) 
+boost.testMSE2 # test MSE =  0.2140951
+
+# Depth = 1 may reduce overfitting on the training set. 
+
+
+```
+
+Exercise 11. Executive summary of randomforest
+
+Randomforest model which was tested in exercise 11 turned out to be the most accurate model for prediction. The difference between bagging and randomforest is that randomforest de-correlates the grown trees by allowing only a subset of predictors to be used at each split. Thus, one could state that the randomforest is superior to bagging. However, randomforest do employ a bit more randomization in the algorithm which can lead to a small difference in the outcomes.
+
+In exercise 11, we tried to improve its predictability by adjusting for the mtry which is the number of predictors considered in each split. As we can see, if mtry is equal to the number of total predictors in the data set, randomforest turns into just a bagging model. By adjusting the mtry, we observe that when we decrease mtry, the observed test-MSE also decrease. By having mtry = 4, we get the lowest possible mtry for this data set. The test MSE for the most accurate randomforest was therefore 0.2012783. This in an improvement when comparing to the test-MSE obtained in bagging (0.2079982).
+
+It is also notable that the randomforest outperform boosting as well. When considering financial theory, boosting is often seen as the best choice of model due to its sequential method of growing trees. However, it seems that for this data set, the randomforest managed to obtain a relative good improvement on the test-MSE.
+```{r ISLR, echo=TRUE}
+
+regtree.testMSE # Test MSE 0.2291364
+prun.testMSE # 0.2291364
+bag.testMSE # 0.197693
+rd.testMSE.7 #  0.1902107
+boost.testMSE2 # test MSE =  0.2129593, depth = 1
+```
+
+Exercise 12. ISLR Exercise 4.8.14
+```{r ISLR, echo=TRUE}
+
+rm(list=ls());    # Clears all objects
+cat("\014");      # Clears the console screen
+
+
+
+#a)
+library(ISLR2)
+#View(Auto)
+
+median <- median(Auto$mpg) # calculating the median of column "mpg"
+Auto$mpg01 <- ifelse(Auto$mpg > median, 1, 0) # creating a new column to the Auto data frame called mpg01 according to the instructions
+View(Auto)
+
+
+
+#b)
+# Plotting relationships
+library(ggplot2)
+
+ggplot(Auto, aes(x = mpg01, y = displacement)) + geom_point()
+# High levels of mpg01 tend to have lower displacement
+
+ggplot(Auto, aes(x = mpg01, y = horsepower)) + geom_point()
+# Hight levels of mpg01 tend to have low levels of horsepower. One could state that horsepower higher than 150 will have mpg01 = 0
+
+ggplot(Auto, aes(x = factor(mpg01), y = weight)) + geom_boxplot()
+# Higher weight tend to also have lower mpg01
+
+ggplot(Auto, aes(x = factor(mpg01), y = origin)) + geom_boxplot()
+# Larger values of origin correlates to larger mpg01
+
+
+
+#c)
+set.seed(1)
+# Splitting the data into test and training subsets (balanced)
+train <- sample(c(TRUE, FALSE), nrow(Auto), replace = TRUE)
+train1 <- Auto[train, ]
+test <- (!train)
+test1 <- Auto[test, ]
+y.test1 <- test1$mpg01
+train1
+y.test1
+
+
+#f)
+# Logistic regression individually on the 4 variables that was observed in b).
+glm.fit1 <- glm(mpg01 ~ displacement, data = Auto, subset = train, family = "binomial")
+summary(glm.fit1)
+
+
+yhat.logit1 <- predict(glm.fit1, newdata = test1) 
+logit.testMSE1 <- mean((yhat.logit1 - y.test1)^2) 
+logit.testMSE1
+
+
+glm.fit2 <- glm(mpg01 ~ horsepower, data = Auto, subset = train, family = "binomial")
+summary(glm.fit2)
+
+
+yhat.logit2 <- predict(glm.fit2, newdata = test1) 
+logit.testMSE2 <- mean((yhat.logit2 - y.test1)^2) 
+logit.testMSE2
+
+
+glm.fit3 <- glm(mpg01 ~ weight, data = Auto, subset = train, family = "binomial")
+summary(glm.fit3)
+
+
+yhat.logit3 <- predict(glm.fit3, newdata = test1) 
+logit.testMSE3 <- mean((yhat.logit3 - y.test1)^2) 
+logit.testMSE3
+
+
+glm.fit4 <- glm(mpg01 ~ origin, data = Auto, subset = train, family = "binomial")
+summary(glm.fit4)
+
+
+yhat.logit4 <- predict(glm.fit4, newdata = test1) 
+logit.testMSE4 <- mean((yhat.logit4 - y.test1)^2) 
+logit.testMSE4
+
+# Lowest test MSE is generated by regressing weight. The other values are close 
+
+# testing all
+glm.fit5 <- glm(mpg01 ~ cylinders + weight + horsepower + displacement, data = Auto, subset = train, family = "binomial")
+summary(glm.fit5)
+
+yhat.logit5 <- predict(glm.fit5, newdata = test1)
+logit.testMSE5 <- mean((yhat.logit5 - y.test1)^2) 
+logit.testMSE5
+
+```
